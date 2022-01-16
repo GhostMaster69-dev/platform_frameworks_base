@@ -72,38 +72,26 @@ public class NotificationLightsView extends RelativeLayout {
     }
 
     public int getNotificationLightsColor() {
-        int color = 0xFFFFFFFF;
-        int colorMode = Settings.System.getIntForUser(mContext.getContentResolver(),
-                Settings.System.NOTIFICATION_PULSE_COLOR_MODE,
-                0, UserHandle.USER_CURRENT);
-        int customColor = Settings.System.getIntForUser(mContext.getContentResolver(),
-                Settings.System.NOTIFICATION_PULSE_COLOR, 0xFFFFFFFF,
+        final ContentResolver resolver = mContext.getContentResolver();
+        int colorMode = Settings.System.getIntForUser(resolver,
+                Settings.System.NOTIFICATION_PULSE_COLOR_MODE, 0,
                 UserHandle.USER_CURRENT);
-        switch (colorMode) {
-            case 1: // Wallpaper
-                try {
-                    WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
-                    WallpaperInfo wallpaperInfo = wallpaperManager.getWallpaperInfo();
-                    if (wallpaperInfo == null) { // if not a live wallpaper
-                        Drawable wallpaperDrawable = wallpaperManager.getDrawable();
-                        Bitmap bitmap = ((BitmapDrawable)wallpaperDrawable).getBitmap();
-                        if (bitmap != null) { // if wallpaper is not blank
-                            Palette p = Palette.from(bitmap).generate();
-                            int wallColor = p.getDominantColor(color);
-                            if (color != wallColor)
-                                color = wallColor;
-                        }
+        int color = Settings.System.getIntForUser(resolver,
+                Settings.System.NOTIFICATION_PULSE_COLOR,
+                Utils.getColorAccentDefaultColor(mContext),
+                UserHandle.USER_CURRENT); // custom color (fallback)
+        if (colorMode == 0) { // accent
+            color = Utils.getColorAccentDefaultColor(mContext);
+        } else if (colorMode == 1) { // wallpaper
+            try {
+                WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
+                if (wallpaperManager.getWallpaperInfo() == null) { // if not a live wallpaper
+                    Bitmap bitmap = ((BitmapDrawable) wallpaperManager.getDrawable()).getBitmap();
+                    if (bitmap != null) { // if wallpaper is not blank
+                        color = Palette.from(bitmap).generate().getDominantColor(color);
                     }
-                } catch (Exception e) { /* nothing to do, will use fallback */ }
-                break;
-            case 2: // Accent
-                color = Utils.getColorAccentDefaultColor(getContext());
-                break;
-            case 3: // Custom
-                color = customColor;
-                break;
-            default: // White
-                color = 0xFFFFFFFF;
+                }
+            } catch (Exception e) { /* nothing to do, will use fallback */ }
         }
         return color;
     }
@@ -124,7 +112,7 @@ public class NotificationLightsView extends RelativeLayout {
         mLightAnimator = ValueAnimator.ofFloat(0.0f, 2.0f);
         mLightAnimator.setDuration(duration);
         mLightAnimator.setRepeatCount(repeats == 0 ?
-                ValueAnimator.INFINITE : repeats - 1);
+                ValueAnimator.INFINITE : repeats);
         mLightAnimator.setRepeatMode(ValueAnimator.RESTART);
         if (repeats != 0) {
             mLightAnimator.addListener(new AnimatorListener() {
